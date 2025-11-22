@@ -122,7 +122,9 @@ const Register = () => {
     }
   };
 
-  const urlFinal = idGerado ? `https://williamnmiranda.github.io/Projeto_Integrador_APH/#/data/${idGerado}` : "";
+  const urlFinal = idGerado 
+  ? `${window.location.origin}/data/${idGerado}` 
+  : "";
   
   const StatusBadge = ({ respondido }) => {
     if (respondido === null) return <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded border border-orange-200 uppercase tracking-wide">Obrigatório</span>;
