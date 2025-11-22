@@ -11,7 +11,7 @@ const Data = () => {
   const [loading, setLoading] = useState(true);
   const [mostrarCarteirinha, setMostrarCarteirinha] = useState(false);
 
-  // === FORMATA O TELEFONE ===
+  // === FORMATADORES ===
   const formatarTelefone = (fone) => {
     if (!fone) return "Não informado";
     const limpo = fone.replace(/\D/g, "");
@@ -20,10 +20,8 @@ const Data = () => {
     return fone;
   };
 
-  // === FORMATA A DATA (NOVA FUNÇÃO) ===
   const formatarData = (timestamp) => {
-    if (!timestamp) return "Data desconhecida";
-    // O Firebase retorna segundos, convertemos para milissegundos
+    if (!timestamp) return "--/--/----";
     const date = new Date(timestamp.seconds * 1000);
     return date.toLocaleDateString("pt-BR");
   };
@@ -46,14 +44,13 @@ const Data = () => {
       try {
         const docRef = doc(db, "pacientes", id);
         const docSnap = await getDoc(docRef);
-
         if (docSnap.exists()) {
           setPaciente(docSnap.data());
         } else {
           alert("Paciente não encontrado!");
         }
       } catch (error) {
-        console.error("Erro ao buscar:", error);
+        console.error("Erro:", error);
       } finally {
         setLoading(false);
       }
@@ -61,256 +58,274 @@ const Data = () => {
     buscarPaciente();
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div></div>;
+  if (!paciente) return <div className="min-h-screen flex items-center justify-center">Paciente não encontrado.</div>;
 
-  if (!paciente) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-        <h1 className="text-2xl font-bold text-gray-400">Paciente não encontrado</h1>
-        <button onClick={() => navigate('/')} className="mt-4 text-blue-600 hover:underline">Voltar ao início</button>
-      </div>
-    );
-  }
-
-  // Lógica simplificada para cores
+  // === VERIFICAÇÕES LÓGICAS ===
   const temAlergia = paciente.alergias && paciente.alergias.trim() !== "";
   const temMedicamento = paciente.medicamentos && paciente.medicamentos.trim() !== "";
   const temCondicao = paciente.condicoes && paciente.condicoes.trim() !== "";
+  const temReligiao = paciente.restricaoReligiosa && paciente.restricaoReligiosa.trim() !== "";
+  
+  const ehDoador = paciente.doadorOrgaos === "Sim";
+  const ehGestante = paciente.prenhez === "Sim";
+  const temDeficiencia = paciente.deficienciaFisica && paciente.deficienciaFisica.trim() !== "";
+  const ehImunossuprimido = paciente.imunossuprimido === "Sim";
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 font-sans relative">
       
-      {/* CSS PARA IMPRESSÃO */}
-      <style>
-        {`
-          @media print {
-            body * { visibility: hidden; }
-            #carteirinha-modal-content, #carteirinha-modal-content * { visibility: visible; }
-            #carteirinha-modal-content {
-              position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0;
-              background-color: white !important;
-              -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-            }
-            .no-print { display: none !important; }
-          }
-        `}
-      </style>
+      <style>{`@media print { body * { visibility: hidden; } #carteirinha-modal-content, #carteirinha-modal-content * { visibility: visible; } #carteirinha-modal-content { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background-color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .no-print { display: none !important; } }`}</style>
 
-      {/* Botão Voltar */}
-      <div className="max-w-3xl mx-auto mb-6 no-print">
-        <button onClick={() => navigate('/')} className="flex items-center text-gray-500 hover:text-blue-600 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-          Voltar
-        </button>
+      <div className="max-w-3xl mx-auto mb-4 no-print">
+        <button onClick={() => navigate('/')} className="flex items-center text-gray-500 hover:text-blue-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg> Voltar</button>
       </div>
 
       <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 no-print">
         
         {/* ================= CABEÇALHO ================= */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-8 text-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{paciente.nome} {paciente.sobrenome}</h1>
-              
-              <div className="flex flex-col sm:flex-row gap-3 mt-2 mb-3">
-                <p className="text-blue-200 text-sm font-mono bg-blue-700/30 inline-block px-2 py-0.5 rounded w-fit">
-                  ID: {id}
-                </p>
-                
-                {/* === NOVA DATA DE ATUALIZAÇÃO AQUI === */}
-                <p className="text-blue-100 text-sm flex items-center gap-1 opacity-90 bg-blue-700/20 px-2 py-0.5 rounded w-fit">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-                  Atualizado em: {formatarData(paciente.dataCriacao)}
-                </p>
-              </div>
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 p-8 text-white relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
+            {/* FOTO */}
+            <div className="shrink-0 relative">
+              {paciente.fotoUrl ? (
+                <img src={paciente.fotoUrl} alt="Paciente" className="w-32 h-32 rounded-full object-cover border-4 border-white/30 shadow-lg bg-white" />
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center border-4 border-white/30"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/80"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              )}
+              <div className="absolute -bottom-2 -right-2 bg-white text-red-600 w-12 h-12 flex items-center justify-center rounded-full font-black text-lg shadow-lg border-2 border-red-100">{paciente.sangue || "?"}</div>
+            </div>
 
-              <div className="flex items-center gap-4 text-blue-100">
-                <span className="flex items-center gap-1 bg-blue-700/50 px-3 py-1 rounded-full text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-                  {calcularIdade(paciente.nascimento)} anos
-                </span>
-                <span className="flex items-center gap-1 bg-blue-700/50 px-3 py-1 rounded-full text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  {paciente.genero || "Não informado"}
-                </span>
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="text-3xl font-bold leading-tight">{paciente.nome} {paciente.sobrenome}</h1>
+              <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
+                <span className="bg-blue-900/40 px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-blue-500/30">{calcularIdade(paciente.nascimento)} anos</span>
+                <span className="bg-blue-900/40 px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-blue-500/30">{paciente.genero}</span>
+              </div>
+              <div className="flex flex-col md:flex-row gap-3 mt-3 justify-center md:justify-start">
+                 <p className="text-blue-200 text-xs font-mono bg-blue-900/30 px-2 py-1 rounded w-fit">ID: {id}</p>
+                 <p className="text-blue-300 text-[10px] bg-blue-900/20 px-2 py-1 rounded w-fit">Atualizado: {formatarData(paciente.dataCriacao)}</p>
               </div>
             </div>
-            
-            {paciente.sangue && (
-              <div className="bg-white text-red-600 px-6 py-3 rounded-2xl shadow-lg text-center min-w-[80px]">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sangue</p>
-                <p className="text-3xl font-black">{paciente.sangue}</p>
-              </div>
-            )}
           </div>
-          <div className="absolute -right-10 -top-10 bg-white opacity-10 w-40 h-40 rounded-full blur-2xl"></div>
         </div>
 
-        <div className="p-8 space-y-8">
+        <div className="p-6 space-y-8">
 
-          {/* ================= SINAIS VITAIS ================= */}
-          <section>
-            <h3 className="flex items-center gap-2 text-gray-400 font-semibold uppercase text-xs tracking-wider mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
-              Biometria
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <p className="text-gray-500 text-sm mb-1 flex items-center gap-2">Altura</p>
-                <p className="text-xl font-semibold text-gray-800">{paciente.altura ? `${paciente.altura} cm` : "--"}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <p className="text-gray-500 text-sm mb-1 flex items-center gap-2">Peso</p>
-                <p className="text-xl font-semibold text-gray-800">{paciente.peso ? `${paciente.peso} kg` : "--"}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 col-span-2 md:col-span-1">
-                <p className="text-gray-500 text-sm mb-1 flex items-center gap-2">IMC (Est.)</p>
-                <p className="text-xl font-semibold text-gray-800">
-                  {paciente.altura && paciente.peso 
-                    ? (paciente.peso / ((paciente.altura/100)**2)).toFixed(1) 
-                    : "--"}
-                </p>
-              </div>
+          {/* ================= SEÇÃO 1: BIOMETRIA (Altura, Peso, Sangue) ================= */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase mb-3 tracking-wide border-b border-slate-100 pb-1">Biometria</h3>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100"><p className="text-xs text-slate-400 uppercase font-bold">Altura</p><p className="text-lg font-bold text-slate-700">{paciente.altura ? `${paciente.altura} cm` : "--"}</p></div>
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100"><p className="text-xs text-slate-400 uppercase font-bold">Peso</p><p className="text-lg font-bold text-slate-700">{paciente.peso ? `${paciente.peso} kg` : "--"}</p></div>
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100"><p className="text-xs text-slate-400 uppercase font-bold">Sangue</p><p className="text-lg font-bold text-red-600">{paciente.sangue || "?"}</p></div>
             </div>
-          </section>
-
-          <hr className="border-gray-100" />
-
-          {/* ================= ALERTAS MÉDICOS ================= */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <section className={`rounded-2xl p-6 border ${temAlergia ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
-              <h3 className={`flex items-center gap-2 font-bold mb-3 ${temAlergia ? 'text-red-700' : 'text-green-700'}`}>
-                Alergias
-              </h3>
-              <p className={`${temAlergia ? 'text-red-900' : 'text-green-900'} text-sm leading-relaxed`}>
-                {temAlergia ? paciente.alergias : "✅ Nenhuma alergia conhecida."}
-              </p>
-            </section>
-
-            <section className={`rounded-2xl p-6 border ${temMedicamento ? 'bg-blue-50 border-blue-100' : 'bg-green-50 border-green-100'}`}>
-              <h3 className={`flex items-center gap-2 font-bold mb-3 ${temMedicamento ? 'text-blue-800' : 'text-green-700'}`}>
-                Medicamentos
-              </h3>
-              <p className={`${temMedicamento ? 'text-blue-900' : 'text-green-900'} text-sm leading-relaxed`}>
-                {temMedicamento ? paciente.medicamentos : "✅ Nenhum uso contínuo."}
-              </p>
-            </section>
           </div>
 
-          {/* Condições Crônicas */}
-          <section className={`rounded-2xl p-6 border mt-4 ${temCondicao ? 'bg-yellow-50 border-yellow-100' : 'bg-green-50 border-green-100'}`}>
-             <h3 className={`flex items-center gap-2 font-bold mb-3 ${temCondicao ? 'text-yellow-800' : 'text-green-700'}`}>
-                Histórico / Condições
-              </h3>
-              <p className={`${temCondicao ? 'text-yellow-900' : 'text-green-900'} text-sm`}>
-                {temCondicao ? paciente.condicoes : "✅ Nenhum histórico registrado."}
-              </p>
-          </section>
+          {/* ================= SEÇÃO 2: CONDIÇÕES FÍSICAS ESPECÍFICAS (SEPARADAS) ================= */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase mb-3 tracking-wide border-b border-slate-100 pb-1">Condições e Status</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+                
+                {/* PRENHEZ (GRAVIDEZ) */}
+                <div className={`p-4 rounded-xl border flex justify-between items-center ${ehGestante ? "bg-pink-50 border-pink-200" : "bg-slate-50 border-slate-100"}`}>
+                    <span className="text-sm font-bold text-slate-700">🤰 Gestante (Suspeita):</span>
+                    <span className={`font-bold ${ehGestante ? "text-pink-600" : "text-slate-400"}`}>{ehGestante ? "SIM" : "Não"}</span>
+                </div>
 
-          <hr className="border-gray-100" />
+                {/* DOADOR */}
+                <div className={`p-4 rounded-xl border flex justify-between items-center ${ehDoador ? "bg-green-50 border-green-200" : "bg-slate-50 border-slate-100"}`}>
+                    <span className="text-sm font-bold text-slate-700">❤️ Doador de Órgãos:</span>
+                    <span className={`font-bold ${ehDoador ? "text-green-600" : "text-slate-400"}`}>{ehDoador ? "SIM" : "Não"}</span>
+                </div>
 
-          {/* ================= CONTATO EMERGÊNCIA ================= */}
-          <section>
-             <h3 className="flex items-center gap-2 text-gray-400 font-semibold uppercase text-xs tracking-wider mb-4">
-              Em caso de emergência
-            </h3>
-            <div className="flex items-center gap-4 p-4 bg-gray-900 text-white rounded-2xl shadow-lg">
-              <div className="p-3 bg-white/10 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-              </div>
+                {/* DEFICIÊNCIA */}
+                <div className={`p-4 rounded-xl border md:col-span-2 ${temDeficiencia ? "bg-blue-50 border-blue-200" : "bg-slate-50 border-slate-100"}`}>
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-slate-700">♿ Deficiência Física:</span>
+                        <span className={`font-bold ${temDeficiencia ? "text-blue-700" : "text-slate-400"}`}>{temDeficiencia ? "SIM" : "Não"}</span>
+                    </div>
+                    {temDeficiencia && <p className="mt-2 text-sm text-blue-800 bg-white p-2 rounded border border-blue-100">{paciente.deficienciaFisica}</p>}
+                </div>
+            </div>
+          </div>
+
+          {/* ================= SEÇÃO 3: HISTÓRICO CLÍNICO (CARTÕES GRANDES) ================= */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase mb-3 tracking-wide border-b border-slate-100 pb-1">Histórico Clínico</h3>
+            <div className="space-y-4">
+                {/* Alergias */}
+                <div className={`p-4 rounded-xl border-l-4 shadow-sm ${temAlergia ? 'bg-white border-red-500 shadow-red-100' : 'bg-slate-50 border-emerald-500'}`}>
+                    <h4 className={`font-bold mb-1 ${temAlergia ? 'text-red-700' : 'text-emerald-700'}`}>Alergias (Medicamentos/Alimentos)</h4>
+                    <p className="text-sm text-slate-700">{temAlergia ? paciente.alergias : "✅ Nenhuma alergia relatada"}</p>
+                </div>
+
+                {/* Medicamentos */}
+                <div className={`p-4 rounded-xl border-l-4 shadow-sm ${temMedicamento ? 'bg-white border-blue-500 shadow-blue-100' : 'bg-slate-50 border-emerald-500'}`}>
+                    <h4 className={`font-bold mb-1 ${temMedicamento ? 'text-blue-700' : 'text-emerald-700'}`}>Medicamentos de Uso Contínuo</h4>
+                    <p className="text-sm text-slate-700">{temMedicamento ? paciente.medicamentos : "✅ Nenhum uso contínuo"}</p>
+                </div>
+
+                {/* Patologias */}
+                <div className={`p-4 rounded-xl border-l-4 shadow-sm ${temCondicao ? 'bg-white border-amber-500 shadow-amber-100' : 'bg-slate-50 border-emerald-500'}`}>
+                    <h4 className={`font-bold mb-1 ${temCondicao ? 'text-amber-700' : 'text-emerald-700'}`}>Patologias / Cirurgias / Próteses</h4>
+                    <p className="text-sm text-slate-700">{temCondicao ? paciente.condicoes : "✅ Sem histórico registrado"}</p>
+                </div>
+            </div>
+          </div>
+
+          {/* ================= SEÇÃO 4: BIOÉTICA / RELIGIÃO ================= */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase mb-3 tracking-wide border-b border-slate-100 pb-1">Bioética</h3>
+            <div className={`p-4 rounded-xl border shadow-sm ${temReligiao ? "bg-purple-50 border-purple-300" : "bg-slate-50 border-slate-200"}`}>
+                <h4 className={`font-bold mb-1 flex items-center gap-2 ${temReligiao ? "text-purple-900" : "text-slate-500"}`}>
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 21v-7"/><path d="M5 10l7 7 7-7"/><path d="M12 14V3"/></svg>
+                   Caráter Religioso / Restrições
+                </h4>
+                <p className={`text-sm ${temReligiao ? "text-purple-800 font-medium" : "text-slate-400"}`}>
+                   {temReligiao ? paciente.restricaoReligiosa : "Sem restrições religiosas declaradas."}
+                </p>
+            </div>
+          </div>
+
+          {/* ================= SEÇÃO 5: DADOS SENSÍVEIS (ANONIMIZADOS) ================= */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase mb-3 tracking-wide border-b border-slate-100 pb-1">Dados Sensíveis</h3>
+            {ehImunossuprimido ? (
+                <div className="bg-slate-900 text-white p-5 rounded-xl flex items-start gap-4 border border-slate-700 shadow-lg">
+                <div className="mt-1 p-2 bg-red-900/50 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                <div>
+                    <h3 className="font-bold text-red-400 text-lg uppercase">⚠️ Alerta Biossegurança</h3>
+                    <p className="text-slate-300 text-sm mt-1">Paciente declarou ser portador de condição sensível (HIV, AIDS, Lúpus ou similar).</p>
+                </div>
+                </div>
+            ) : (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-500 text-sm">
+                    Paciente nega condições de imunossupressão ou doenças infectocontagiosas.
+                </div>
+            )}
+          </div>
+
+          {/* ================= SEÇÃO 6: CONTATO ================= */}
+          <div className="bg-red-50 border border-red-100 p-6 rounded-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
               <div>
-                <p className="text-gray-400 text-xs uppercase tracking-wide">Ligar para</p>
-                <p className="text-lg font-bold">{paciente.contatoNome} <span className="text-gray-500 text-sm font-normal">({paciente.contatoRelacao})</span></p>
-                <a href={`tel:${paciente.contatoTelefone}`} className="text-2xl font-bold text-green-400 hover:underline block mt-1">
-                  {formatarTelefone(paciente.contatoTelefone)}
-                </a>
+                <p className="text-red-500 text-xs font-bold uppercase">Em caso de emergência, ligar para</p>
+                <p className="text-red-900 font-bold text-2xl mt-1">{paciente.contatoNome}</p>
+                <p className="text-red-700 font-medium">({paciente.contatoRelacao})</p>
               </div>
+              <a href={`tel:${paciente.contatoTelefone}`} className="bg-red-600 text-white px-8 py-4 rounded-xl font-black text-xl shadow-lg shadow-red-200 hover:bg-red-700 transition whitespace-nowrap flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                {formatarTelefone(paciente.contatoTelefone)}
+              </a>
             </div>
-          </section>
+            {paciente.email && <p className="text-xs text-red-400 border-t border-red-200/50 pt-2 text-center sm:text-left">E-mail: {paciente.email}</p>}
+          </div>
 
-          {/* ================= QR CODE E BOTÃO ================= */}
-          <div className="flex flex-col items-center justify-center pt-8 pb-4">
-            <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-sm">
-                <QRCodeCanvas value={window.location.href} size={100} level={"H"} />
-            </div>
-            <button onClick={() => setMostrarCarteirinha(true)} className="mt-6 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-              Abrir Carteirinha Digital
+          {/* BOTÕES */}
+          <div className="flex flex-col items-center gap-4 pt-4">
+            <div className="p-3 bg-white border rounded-xl shadow-sm"><QRCodeCanvas value={window.location.href} size={100} level={"H"} /></div>
+            <button onClick={() => setMostrarCarteirinha(true)} className="w-full bg-slate-800 text-white px-8 py-4 rounded-xl font-bold shadow-xl hover:bg-black transition flex items-center justify-center gap-3 text-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+              ABRIR CARTEIRINHA
             </button>
           </div>
 
         </div>
       </div>
 
-      {/* ================= MODAL DA CARTEIRINHA ================= */}
+      {/* ========================================================================= */}
+      {/* ================= MODAL CARTEIRINHA (COMPACTA E BONITA) ================= */}
+      {/* ========================================================================= */}
       {mostrarCarteirinha && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div id="carteirinha-modal-content" className="bg-white rounded-2xl w-full max-w-md overflow-hidden relative">
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div id="carteirinha-modal-content" className="bg-white rounded-xl w-full max-w-[500px] overflow-hidden relative shadow-2xl font-sans">
             
-            <button onClick={() => setMostrarCarteirinha(false)} className="absolute top-2 right-2 bg-gray-200 p-2 rounded-full hover:bg-gray-300 z-10 no-print">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
-            </button>
+            <button onClick={() => setMostrarCarteirinha(false)} className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 text-white p-1 rounded-full z-10 no-print"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
 
-            <div className="bg-slate-50 p-0">
-              <div className="bg-blue-700 p-4 flex justify-between items-center">
-                <div>
-                  <h3 className="text-white font-bold text-lg tracking-wide">CARTÃO DE EMERGÊNCIA</h3>
-                  <p className="text-blue-200 text-xs">APH - Prontuário Digital</p>
+            <div className="bg-white border border-slate-300">
+              {/* Header Carteirinha */}
+              <div className="bg-blue-800 p-3 flex gap-3 items-center text-white relative overflow-hidden">
+                <div className="w-14 h-14 bg-white rounded-full border-2 border-white overflow-hidden shrink-0 relative z-10 shadow-md">
+                   {paciente.fotoUrl ? <img src={paciente.fotoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400 text-[8px]">FOTO</div>}
                 </div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white opacity-50"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
+                <div className="relative z-10 flex-1">
+                  <h2 className="font-black text-lg leading-none uppercase tracking-wide">Cartão de Emergência</h2>
+                  <p className="text-blue-200 text-[10px] mt-0.5 font-medium">APH - Identificação Positiva</p>
+                  {/* Badges */}
+                  <div className="flex gap-1 mt-1 flex-wrap">
+                    {ehDoador && <span className="bg-red-600 text-white text-[8px] px-1.5 rounded font-bold border border-white/20">DOADOR ❤️</span>}
+                    {ehGestante && <span className="bg-pink-500 text-white text-[8px] px-1.5 rounded font-bold border border-white/20">GESTANTE</span>}
+                    {temDeficiencia && <span className="bg-blue-400 text-white text-[8px] px-1.5 rounded font-bold border border-white/20">PCD</span>}
+                  </div>
+                </div>
+                <div className="absolute right-[-10px] top-[-10px] text-white/10 rotate-12"><svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="none" stroke="currentColor" strokeWidth="1"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></div>
               </div>
 
-              <div className="p-5 flex gap-3">
-                 <div className="flex-1 space-y-2">
+              <div className="p-3">
+                 <div className="flex justify-between items-end border-b border-slate-100 pb-2 mb-2">
                     <div>
-                      <p className="text-[10px] text-gray-500 uppercase font-bold">Nome</p>
-                      <p className="font-bold text-gray-900 text-base leading-tight">{paciente.nome} {paciente.sobrenome}</p>
+                        <p className="text-[8px] text-slate-400 uppercase font-bold">Nome Completo</p>
+                        <p className="font-bold text-slate-900 text-sm leading-tight">{paciente.nome} {paciente.sobrenome}</p>
                     </div>
-
-                    <div className="flex gap-3">
-                      <div><p className="text-[10px] text-gray-500 uppercase font-bold">Sangue</p><p className="font-black text-red-600 text-lg">{paciente.sangue || "--"}</p></div>
-                      <div><p className="text-[10px] text-gray-500 uppercase font-bold">Nascimento</p><p className="font-semibold text-gray-700 text-sm pt-0.5">{paciente.nascimento ? new Date(paciente.nascimento).toLocaleDateString('pt-BR') : '--'}</p></div>
+                    <div className="text-right flex gap-3">
+                        <div><p className="text-[8px] text-slate-400 uppercase font-bold">Idade</p><p className="font-bold text-slate-800 text-sm">{calcularIdade(paciente.nascimento)}</p></div>
+                        <div><p className="text-[8px] text-slate-400 uppercase font-bold">Sangue</p><p className="font-black text-red-600 text-sm bg-red-50 px-1 rounded">{paciente.sangue || "?"}</p></div>
                     </div>
-
-                    <div><p className="text-[10px] text-gray-500 uppercase font-bold">Alergias</p>
-                       {temAlergia ? <div className="bg-red-100 text-red-800 px-1.5 py-0.5 rounded text-[11px] font-bold border border-red-200 leading-tight inline-block">⚠️ {paciente.alergias}</div> : <div className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[11px] font-bold border border-green-200 leading-tight inline-block">✅ Nenhuma</div>}
-                    </div>
-
-                    <div><p className="text-[10px] text-gray-500 uppercase font-bold">Medicamentos</p>
-                       {temMedicamento ? <div className="bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded text-[11px] font-bold border border-blue-100 leading-tight inline-block">💊 {paciente.medicamentos}</div> : <div className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[11px] font-bold border border-green-200 leading-tight inline-block">✅ Nenhum uso contínuo</div>}
-                    </div>
-
-                    <div><p className="text-[10px] text-gray-500 uppercase font-bold">Condições</p>
-                       {temCondicao ? <div className="bg-yellow-50 text-yellow-800 px-1.5 py-0.5 rounded text-[11px] font-bold border border-yellow-100 leading-tight inline-block">🩺 {paciente.condicoes}</div> : <div className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[11px] font-bold border border-green-200 leading-tight inline-block">✅ Nenhuma</div>}
-                    </div>
-
-                    <div className="pt-1"><p className="text-[9px] text-gray-400 uppercase">ID para busca:</p><p className="font-mono text-sm font-bold text-blue-800 tracking-wider">{id}</p></div>
                  </div>
 
-                 <div className="flex flex-col items-center justify-start border-l pl-3 min-w-[90px]">
-                    <QRCodeCanvas value={window.location.href} size={85} />
-                    <p className="text-[8px] text-center text-gray-400 mt-1 leading-tight">Acesse a ficha completa</p>
+                 <div className="flex gap-3">
+                    <div className="flex-1 space-y-1.5">
+                        <div className={`text-[9px] border-l-2 pl-1.5 ${temAlergia ? 'border-red-500' : 'border-green-500'}`}>
+                            <span className="font-bold text-slate-700 block">ALERGIAS:</span> 
+                            <span className="text-slate-600 leading-tight block">{temAlergia ? paciente.alergias : "Nenhuma"}</span>
+                        </div>
+                        <div className={`text-[9px] border-l-2 pl-1.5 ${temMedicamento ? 'border-blue-500' : 'border-green-500'}`}>
+                            <span className="font-bold text-slate-700 block">MEDICAMENTOS:</span> 
+                            <span className="text-slate-600 leading-tight block">{temMedicamento ? paciente.medicamentos : "Nenhum contínuo"}</span>
+                        </div>
+                        <div className={`text-[9px] border-l-2 pl-1.5 ${temCondicao ? 'border-amber-500' : 'border-green-500'}`}>
+                            <span className="font-bold text-slate-700 block">PATOLOGIAS:</span> 
+                            <span className="text-slate-600 leading-tight block">{temCondicao ? paciente.condicoes : "Nenhuma"}</span>
+                        </div>
+                        {temReligiao && (
+                            <div className="text-[9px] border-l-2 border-purple-500 pl-1.5 bg-purple-50 p-1 rounded-r">
+                                <span className="font-bold text-purple-900 block">RELIGIÃO / RESTRIÇÃO:</span> 
+                                <span className="text-purple-800 leading-tight block">{paciente.restricaoReligiosa}</span>
+                            </div>
+                        )}
+                        {ehImunossuprimido && (
+                            <div className="text-[9px] border-l-2 border-red-800 pl-1.5 bg-slate-800 p-1 rounded text-white">
+                                ⚠️ PACIENTE IMUNOSSUPRIMIDO
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center w-20 shrink-0">
+                        <QRCodeCanvas value={window.location.href} size={70} />
+                        <p className="text-[7px] text-center text-slate-400 mt-1">Aponte a câmera</p>
+                    </div>
                  </div>
               </div>
-
-              <div className="bg-red-50 p-2 border-t border-red-100 text-center">
-                <p className="text-[10px] text-red-500 font-bold uppercase">EMERGÊNCIA (LIGAR):</p>
-                <p className="text-lg font-black text-red-700 leading-none">{formatarTelefone(paciente.contatoTelefone)}</p>
-                <p className="text-[10px] text-red-400">{paciente.contatoNome}</p>
+              
+              <div className="bg-red-600 p-2 text-white flex justify-between items-center">
+                <div>
+                    <p className="text-[8px] font-bold uppercase opacity-80">Em Emergência Ligar:</p>
+                    <p className="text-xs font-bold">{paciente.contatoNome} ({paciente.contatoRelacao})</p>
+                </div>
+                <p className="text-lg font-black bg-white text-red-600 px-2 py-0.5 rounded shadow-sm">
+                    {formatarTelefone(paciente.contatoTelefone)}
+                </p>
               </div>
             </div>
 
-            <div className="p-4 bg-gray-50 flex gap-3 no-print">
-              <button onClick={() => window.print()} className="flex-1 bg-gray-800 text-white py-2 rounded-lg font-semibold hover:bg-black transition">Imprimir</button>
-              <button onClick={() => setMostrarCarteirinha(false)} className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">Fechar</button>
+            <div className="p-4 bg-slate-800 flex gap-3 no-print">
+              <button onClick={() => window.print()} className="flex-1 bg-white text-slate-900 py-2 rounded-lg font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                Imprimir
+              </button>
+              <button onClick={() => setMostrarCarteirinha(false)} className="flex-1 border border-slate-600 text-slate-300 py-2 rounded-lg font-bold hover:bg-slate-700 transition">Fechar</button>
             </div>
-
           </div>
         </div>
       )}
