@@ -85,7 +85,7 @@ const Header = () => {
 
             {/* BUSCAR PACIENTE */}
             <Link
-              to="/buscar"
+              to="/search"
               className="flex items-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition animate-pulse"
             >
               <svg

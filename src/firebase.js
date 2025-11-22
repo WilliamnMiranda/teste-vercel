@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage"; // <--- ADICIONEI ISSO
 
 const firebaseConfig = {
   apiKey: "AIzaSyCAg5h0wOSXHRfcHeo8TmdasBZPfBhLZT0",
@@ -12,4 +13,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Exporta o Banco de Dados
 export const db = getFirestore(app);
+
+// Exporta o Armazenamento de Fotos (ISSO FALTAVA)
+export const storage = getStorage(app);

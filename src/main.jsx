@@ -7,6 +7,7 @@ import { createBrowserRouter, createHashRouter, RouterProvider } from "react-rou
 import Main from "./routes/main/index.jsx";
 import Register from "./routes/register/index.jsx";
 import Data from "./routes/dados/index.jsx";
+import SearchPacient from "./routes/searshPacient/index.jsx";
 
 const router = createBrowserRouter([
   {
@@ -20,6 +21,10 @@ const router = createBrowserRouter([
    {
     path: "/data/:id",
     element: <Data />,
+  },
+    {
+    path: "/search",
+    element: <SearchPacient />,
   },
 ]);
 

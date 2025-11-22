@@ -1,12 +1,19 @@
 import React, { useState } from "react";
 import HeaderReturn from "../../sections/headerReturn";
-import { db } from "../../firebase"; // Certifique-se que o caminho está certo
+import { db } from "../../firebase";
 import { collection, addDoc } from "firebase/firestore";
-import { QRCodeCanvas } from "qrcode.react"; // Importação do QR Code
+import { QRCodeCanvas } from "qrcode.react";
 
 const Register = () => {
-  const [loading, setLoading] = useState(false); // Para mostrar "Enviando..."
-  const [idGerado, setIdGerado] = useState(null); // Guarda o ID se der sucesso
+  const [loading, setLoading] = useState(false);
+  const [idGerado, setIdGerado] = useState(null);
+
+  // Estado para controlar a escolha (null = não respondeu ainda)
+  const [respostasSaude, setRespostasSaude] = useState({
+    alergias: null,     // null, true (sim) ou false (não)
+    medicamentos: null,
+    condicoes: null
+  });
 
   const [formData, setFormData] = useState({
     nome: "",
@@ -24,38 +31,81 @@ const Register = () => {
     contatoTelefone: "",
   });
 
-  // Atualiza qualquer campo automaticamente
-  const handleChange = (e) => {
+  /* const handleChange = (e) => {
     const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  }; */
+
+  // Função para controlar os botões SIM/NÃO
+  const handleSelection = (campo, valor) => {
+    // 1. Atualiza o estado visual (qual botão está pintado)
+    setRespostasSaude(prev => ({ ...prev, [campo]: valor }));
+
+    // 2. Se clicou em NÃO, limpa o texto do formulário para garantir banco limpo
+    if (valor === false) {
+      setFormData(prev => ({ ...prev, [campo]: "" }));
+    }
+  };
+
+  // Atualiza os campos e aplica a Máscara de Telefone
+  const handleChange = (e) => {
+    let { name, value } = e.target;
+
+    // === MÁSCARA PARA O TELEFONE ===
+    if (name === "contatoTelefone") {
+      // 1. Remove tudo o que não é número
+      value = value.replace(/\D/g, ""); 
+      
+      // 2. Limita a 11 números (DDD + 9 dígitos) para não quebrar
+      if (value.length > 11) value = value.slice(0, 11);
+
+      // 3. Adiciona parênteses: (11) 9...
+      value = value.replace(/^(\d{2})(\d)/g, "($1) $2"); 
+      
+      // 4. Adiciona o hífen no lugar certo (funciona para 8 ou 9 dígitos)
+      value = value.replace(/(\d)(\d{4})$/, "$1-$2");
+    }
+
+    // Atualiza o estado com o valor formatado
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-  };
-
-  // Envio do formulário para o Firebase
+  }; 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // === VALIDAÇÃO DE SEGURANÇA ===
+    // Verifica se o usuário respondeu as 3 perguntas de saúde
+    if (respostasSaude.alergias === null || respostasSaude.medicamentos === null || respostasSaude.condicoes === null) {
+      alert("⚠️ ATENÇÃO: Você precisa responder SIM ou NÃO nas perguntas de Histórico Médico (Alergias, Medicamentos e Doenças) para continuar.");
+      return; // Para o envio aqui
+    }
+
+    // Verifica se escolheu SIM mas deixou o texto em branco
+    if ((respostasSaude.alergias && !formData.alergias.trim()) || 
+        (respostasSaude.medicamentos && !formData.medicamentos.trim()) || 
+        (respostasSaude.condicoes && !formData.condicoes.trim())) {
+      alert("⚠️ ATENÇÃO: Você marcou 'SIM' em uma opção de saúde mas não descreveu o que é. Por favor, preencha o campo de texto.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Salva no banco de dados "pacientes"
       const docRef = await addDoc(collection(db, "pacientes"), {
         ...formData,
-        dataCriacao: new Date() // Importante para saber quando foi criado
+        dataCriacao: new Date()
       });
-
-      console.log("Cadastrado com ID:", docRef.id);
-      setIdGerado(docRef.id); // Isso faz a tela mudar para o QR Code
+      setIdGerado(docRef.id);
     } catch (error) {
-      console.error("Erro ao salvar:", error);
-      alert("Erro ao salvar no banco de dados. Verifique o console.");
+      console.error("Erro:", error);
+      alert("Erro ao salvar.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Função para baixar o QR Code como imagem
   const baixarQRCode = () => {
     const canvas = document.getElementById("qr-code-canvas");
     if (canvas) {
@@ -69,7 +119,6 @@ const Register = () => {
     }
   };
 
-  // URL final para onde o QR Code vai apontar
   const urlFinal = idGerado 
     ? `https://williamnmiranda.github.io/Projeto_Integrador_APH/#/data/${idGerado}` 
     : "";
@@ -81,236 +130,151 @@ const Register = () => {
       <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
         <div className="max-w-4xl mx-auto">
 
-          {/* Cabeçalho */}
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center p-4 bg-white rounded-2xl shadow-sm mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity w-10 h-10 text-blue-600">
-                <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
-              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity w-10 h-10 text-blue-600"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg>
             </div>
-
             <h1 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight">
               {idGerado ? "Cadastro Realizado!" : "Formulário do Paciente"}
             </h1>
-
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              {idGerado 
-                ? "O paciente foi cadastrado com sucesso. Use o QR Code abaixo para acessar a ficha." 
-                : "Preencha este formulário com informações médicas precisas."}
+              {idGerado ? "Paciente cadastrado com sucesso." : "Preencha as informações com atenção."}
             </p>
           </div>
 
-          {/* TELA DE SUCESSO COM QR CODE */}
           {idGerado ? (
+             /* TELA DE SUCESSO (Mantive igual) */
              <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 text-center animate-fade-in">
                <div className="mb-6 bg-blue-50 p-4 rounded-full w-20 h-20 mx-auto flex items-center justify-center text-blue-600">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-check">
-                   <path d="M20 6 9 17l-5-5" />
-                 </svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-check"><path d="M20 6 9 17l-5-5" /></svg>
                </div>
-               
                <h2 className="text-2xl font-bold text-gray-900 mb-2">Tudo pronto, {formData.nome}!</h2>
                <p className="text-gray-500 mb-8">Escaneie o código para ver os dados online.</p>
-
                <div className="flex justify-center mb-8 p-4 bg-white border-2 border-dashed border-gray-300 rounded-xl inline-block">
-                 <QRCodeCanvas 
-                    id="qr-code-canvas"
-                    value={urlFinal} 
-                    size={256} 
-                    level={"H"}
-                    includeMargin={true}
-                 />
+                 <QRCodeCanvas id="qr-code-canvas" value={urlFinal} size={256} level={"H"} includeMargin={true} />
                </div>
-
-               <p className="text-xs text-gray-400 mb-6 break-all bg-gray-50 p-2 rounded">
-                  Link gerado: {urlFinal}
-               </p>
-
                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                 <button 
-                   onClick={baixarQRCode}
-                   className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2"
-                 >
-                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                   Baixar QR Code
-                 </button>
-                 
-                 <button 
-                   onClick={() => window.location.reload()} 
-                   className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl font-semibold hover:bg-gray-50 transition"
-                 >
-                   Cadastrar Novo Paciente
-                 </button>
+                 <button onClick={baixarQRCode} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2">Baixar QR Code</button>
+                 <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl font-semibold hover:bg-gray-50 transition">Novo Paciente</button>
                </div>
              </div>
           ) : (
-            /* FORMULÁRIO (Só aparece se NÃO tiver ID gerado) */
             <form className="space-y-8" onSubmit={handleSubmit}>
-
-              {/* ... (SEU CÓDIGO DO FORMULÁRIO CONTINUA IGUAL AQUI PARA BAIXO) ... */}
               
-              {/* ================== INFORMAÇÕES PESSOAIS ================== */}
+              {/* DADOS PESSOAIS (Mantive igual) */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
                 <div className="flex items-start gap-4 mb-6 border-b border-gray-100 pb-4">
                   <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user">
-                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Informações Pessoais</h3>
-                    <p className="text-sm text-gray-500">Detalhes básicos de identificação</p>
-                  </div>
+                  <div><h3 className="text-lg font-semibold text-gray-900">Informações Pessoais</h3></div>
                 </div>
                 <div className="grid grid-cols-2 gap-6">
-                  {/* NOME */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome *</label>
-                    <input name="nome" type="text" placeholder="João" value={formData.nome} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white" required />
-                  </div>
-                  {/* SOBRENOME */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Sobrenome *</label>
-                    <input name="sobrenome" type="text" placeholder="Silva" value={formData.sobrenome} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white" required />
-                  </div>
-                  {/* NASCIMENTO */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Data de Nascimento *</label>
-                    <input name="nascimento" type="date" value={formData.nascimento} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white" required />
-                  </div>
-                  {/* GENERO */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Gênero</label>
-                    <select name="genero" value={formData.genero} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 appearance-none focus:ring-2 focus:ring-blue-500 focus:bg-white">
-                      <option value="">Selecione...</option>
-                      <option value="Masculino">Masculino</option>
-                      <option value="Feminino">Feminino</option>
-                      <option value="Prefiro não informar">Prefiro não informar</option>
-                    </select>
-                  </div>
+                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label><input name="nome" type="text" value={formData.nome} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" required /></div>
+                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Sobrenome *</label><input name="sobrenome" type="text" value={formData.sobrenome} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" required /></div>
+                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Nascimento *</label><input name="nascimento" type="date" value={formData.nascimento} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" required /></div>
+                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gênero</label>
+                    <select name="genero" value={formData.genero} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white"><option value="">Selecione...</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></select>
+                   </div>
+                   <div className="col-span-2 grid grid-cols-3 gap-4">
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Altura (cm)</label><input name="altura" type="number" value={formData.altura} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label><input name="peso" type="number" value={formData.peso} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" /></div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sangue</label>
+                        <select name="sangue" value={formData.sangue} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white"><option value="">...</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select>
+                      </div>
+                   </div>
                 </div>
               </div>
 
-              {/* ================== SINAIS VITAIS ================== */}
+              {/* ================== HISTÓRICO MÉDICO (ATUALIZADO) ================== */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
                 <div className="flex items-start gap-4 mb-6 border-b border-gray-100 pb-4">
                   <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity">
-                      <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Sinais Vitais & Medidas Físicas</h3>
-                    <p className="text-sm text-gray-500">Informações corporais atuais</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Altura (cm)</label>
-                    <input name="altura" type="number" placeholder="175" value={formData.altura} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Peso (kg)</label>
-                    <input name="peso" type="number" placeholder="70" value={formData.peso} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo Sanguíneo</label>
-                    <select name="sangue" value={formData.sangue} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white appearance-none">
-                      <option value="">Selecione...</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* ================== HISTÓRICO MÉDICO ================== */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                <div className="flex items-start gap-4 mb-6 border-b border-gray-100 pb-4">
-                  <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-file-text">
-                      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                      <path d="M10 9H8" />
-                      <path d="M16 13H8" />
-                      <path d="M16 17H8" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></svg>
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Histórico Médico</h3>
-                    <p className="text-sm text-gray-500">Condições existentes e sensibilidades</p>
+                    <p className="text-sm text-gray-500">Responda todas as perguntas abaixo para prosseguir.</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Alergias</label>
-                    <textarea name="alergias" rows="3" placeholder="Liste medicamentos ou alimentos" value={formData.alergias} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white resize-none" />
+
+                <div className="space-y-8">
+                  
+                  {/* ALERGIAS */}
+                  <div className={`border rounded-xl p-5 transition-all ${respostasSaude.alergias === null ? 'bg-white border-gray-200' : respostasSaude.alergias ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="font-medium text-gray-800">1. O paciente possui alguma <b>Alergia</b>? <span className="text-red-500">*</span></p>
+                      {respostasSaude.alergias === null && <span className="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded">Obrigatório</span>}
+                    </div>
+                    <div className="flex gap-4 mb-4">
+                      <button type="button" onClick={() => handleSelection("alergias", false)} className={`flex-1 py-3 rounded-lg border font-medium transition-all ${respostasSaude.alergias === false ? 'bg-gray-700 text-white border-gray-700 shadow-md ring-2 ring-offset-2 ring-gray-500' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>NÃO</button>
+                      <button type="button" onClick={() => handleSelection("alergias", true)} className={`flex-1 py-3 rounded-lg border font-medium transition-all ${respostasSaude.alergias === true ? 'bg-red-600 text-white border-red-600 shadow-md ring-2 ring-offset-2 ring-red-500' : 'bg-white text-gray-500 hover:bg-red-50'}`}>SIM</button>
+                    </div>
+                    {respostasSaude.alergias === true && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Quais alergias? (Obrigatório)</label>
+                        <textarea name="alergias" rows="2" placeholder="Descreva..." value={formData.alergias} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-red-300 bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500" autoFocus />
+                      </div>
+                    )}
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Medicamentos</label>
-                    <textarea name="medicamentos" rows="3" placeholder="Liste medicamentos em uso e dosagens..." value={formData.medicamentos} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white resize-none" />
+
+                  {/* MEDICAMENTOS */}
+                  <div className={`border rounded-xl p-5 transition-all ${respostasSaude.medicamentos === null ? 'bg-white border-gray-200' : respostasSaude.medicamentos ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="font-medium text-gray-800">2. Uso contínuo de <b>Medicamentos</b>? <span className="text-red-500">*</span></p>
+                      {respostasSaude.medicamentos === null && <span className="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded">Obrigatório</span>}
+                    </div>
+                    <div className="flex gap-4 mb-4">
+                      <button type="button" onClick={() => handleSelection("medicamentos", false)} className={`flex-1 py-3 rounded-lg border font-medium transition-all ${respostasSaude.medicamentos === false ? 'bg-gray-700 text-white border-gray-700 shadow-md ring-2 ring-offset-2 ring-gray-500' : 'bg-white text-gray-500 hover:bg-gray-100'}`}>NÃO</button>
+                      <button type="button" onClick={() => handleSelection("medicamentos", true)} className={`flex-1 py-3 rounded-lg border font-medium transition-all ${respostasSaude.medicamentos === true ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-offset-2 ring-blue-500' : 'bg-white text-gray-500 hover:bg-blue-50'}`}>SIM</button>
+                    </div>
+                    {respostasSaude.medicamentos === true && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                         <label className="block text-sm font-medium text-gray-700 mb-1">Quais medicamentos? (Obrigatório)</label>
+                         <textarea name="medicamentos" rows="2" placeholder="Descreva..." value={formData.medicamentos} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-blue-300 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus />
+                      </div>
+                    )}
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Condições Crônicas / Cirurgias Passadas</label>
-                    <textarea name="condicoes" rows="3" placeholder="Diabetes, Hipertensão etc" value={formData.condicoes} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white resize-none" />
+
+                  {/* CONDIÇÕES */}
+                  <div className={`border rounded-xl p-5 transition-all ${respostasSaude.condicoes === null ? 'bg-white border-gray-200' : respostasSaude.condicoes ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="font-medium text-gray-800">3. Histórico de <b>Doenças / Cirurgias</b>? <span className="text-red-500">*</span></p>
+                      {respostasSaude.condicoes === null && <span className="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded">Obrigatório</span>}
+                    </div>
+                    <div className="flex gap-4 mb-4">
+                      <button type="button" onClick={() => handleSelection("condicoes", false)} className={`flex-1 py-3 rounded-lg border font-medium transition-all ${respostasSaude.condicoes === false ? 'bg-gray-700 text-white border-gray-700 shadow-md ring-2 ring-offset-2 ring-gray-500' : 'bg-white text-gray-500 hover:bg-gray-100'}`}>NÃO</button>
+                      <button type="button" onClick={() => handleSelection("condicoes", true)} className={`flex-1 py-3 rounded-lg border font-medium transition-all ${respostasSaude.condicoes === true ? 'bg-yellow-600 text-white border-yellow-600 shadow-md ring-2 ring-offset-2 ring-yellow-500' : 'bg-white text-gray-500 hover:bg-yellow-50'}`}>SIM</button>
+                    </div>
+                    {respostasSaude.condicoes === true && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                         <label className="block text-sm font-medium text-gray-700 mb-1">Descreva o histórico: (Obrigatório)</label>
+                         <textarea name="condicoes" rows="2" placeholder="Descreva..." value={formData.condicoes} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-yellow-300 bg-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" autoFocus />
+                      </div>
+                    )}
                   </div>
+
                 </div>
               </div>
 
-              {/* ================== CONTATO DE EMERGÊNCIA ================== */}
+              {/* CONTATO EMERGÊNCIA (Mantive igual) */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
                 <div className="flex items-start gap-4 mb-6 border-b border-gray-100 pb-4">
-                  <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-circle-alert">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Contato de Emergência</h3>
-                    <p className="text-sm text-gray-500">Pessoa a ser contatada em caso de emergência</p>
-                  </div>
+                   <div className="p-3 bg-blue-50 rounded-xl text-blue-600"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-circle-alert"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg></div>
+                   <div><h3 className="text-lg font-semibold text-gray-900">Contato de Emergência</h3></div>
                 </div>
                 <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome do Contato *</label>
-                    <input name="contatoNome" type="text" value={formData.contatoNome} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Relação</label>
-                    <input name="contatoRelacao" type="text" value={formData.contatoRelacao} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Telefone de Emergência *</label>
-                    <input name="contatoTelefone" type="tel" value={formData.contatoTelefone} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border bg-gray-50 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:bg-white" required />
-                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label><input name="contatoNome" type="text" value={formData.contatoNome} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" required /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Relação</label><input name="contatoRelacao" type="text" value={formData.contatoRelacao} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" /></div>
+                  <div className="col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Telefone *</label><input name="contatoTelefone" type="tel" value={formData.contatoTelefone} onChange={handleChange} className="w-full px-4 py-2.5 rounded-lg border border-gray-300" required /></div>
                 </div>
               </div>
 
-              {/* BOTÃO DE ENVIO */}
               <div className="flex justify-end pt-4 pb-12">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold text-lg shadow-lg transition-all
-                    ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 active:translate-y-0'}
-                  `}
-                >
+                <button type="submit" disabled={loading} className={`flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold text-lg shadow-lg transition-all ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
                   {loading ? "Salvando..." : "Enviar Registro Médico"}
-                  {!loading && (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" className="lucide lucide-circle-check">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="m9 12 2 2 4-4" />
-                    </svg>
-                  )}
                 </button>
               </div>
 
