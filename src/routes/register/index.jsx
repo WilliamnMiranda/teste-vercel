@@ -231,7 +231,7 @@ const Register = () => {
                     {/* Deficiência */}
                     <div className={`p-4 rounded-xl border transition-all ${toggles.deficiencia ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
                         <div className="flex justify-between items-center mb-3">
-                            <span className="font-bold text-slate-700 text-sm">Deficiência Física?</span>
+                            <span className="font-bold text-slate-700 text-sm">Deficiência?</span>
                             <StatusBadge respondido={toggles.deficiencia} />
                         </div>
                         <div className="flex gap-4 mb-3">
@@ -295,7 +295,7 @@ const Register = () => {
                     <div className="p-2 bg-slate-700 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
                     <h3 className="text-lg font-bold">Aba "Anonimizados"</h3>
                 </div>
-                <p className="text-slate-400 text-sm mb-4">O paciente possui condição de imunossupressão ou doença infectocontagiosa? (HIV, AIDS, Lúpus, etc)</p>
+                <p className="text-slate-400 text-sm mb-4">O paciente possui condição de imunossupressão ou doença infectocontagiosa?</p>
                 <div className="flex justify-between items-center mb-4"><span className="text-slate-400 text-xs font-bold uppercase">Confirmação Obrigatória</span><StatusBadge respondido={toggles.imunossuprimido} /></div>
                 <div className="flex gap-4">
                     <button type="button" onClick={() => handleSelection("imunossuprimido", false)} className={`flex-1 py-2 rounded-xl border font-bold shadow-sm transition ${toggles.imunossuprimido === false ? 'bg-slate-600 border-slate-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>NÃO</button>

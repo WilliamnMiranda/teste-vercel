@@ -48,7 +48,7 @@ const Levels = () => {
                     <h3 className="text-2xl font-bold mb-2">Acionamento</h3>
                     <p className="text-red-50">
                       Chamado através do 192 (SAMU) ou 193 (Bombeiros). 
-                      Informe como está a vitima de maneira clara e objetiva,onde é a ocorrencia
+                      Informe como está a vitima de maneira clara e objetiva , onde é a ocorrencia
                       com o máximo de informações possíveis
               
                     </p>

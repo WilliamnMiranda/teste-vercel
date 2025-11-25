@@ -101,35 +101,6 @@ const Equipe = () => {
 
       </div>
 
-     
-      <div class="bg-gradient-to-r from-red-600 to-blue-900 rounded-2xl p-8 text-white shadow-xl">
-
-        <h3 class="text-2xl font-bold mb-4 text-center">A Importância do APH</h3>
-
-        <p class="text-lg leading-relaxed text-center mb-6">
-          Estudos demonstram que o atendimento pré-hospitalar adequado pode reduzir a mortalidade em até
-          <strong class="text-3xl">50%</strong> em casos de trauma grave e aumentar significativamente as chances
-          de recuperação completa em emergências cardíacas.
-        </p>
-
-       <div class="grid grid-cols-3 gap-4 text-center">
-  <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-    <div class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">10min</div>
-  </div>
-
-  <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-    <div class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">24/7</div>
-    <div class="text-xs sm:text-sm text-red-100">Disponível</div>
-  </div>
-
-  <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-    <div class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">100%</div>
-    <div class="text-xs sm:text-sm text-red-100">Dedicação</div>
-  </div>
-</div>
-
-      </div>
-
     </div>
   </div>
 </section>
