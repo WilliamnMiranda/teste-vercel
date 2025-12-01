@@ -10,6 +10,7 @@ import Levels from '../../sections/levels'
 import Protocols from '../../sections/protocols'
 import Equipe from '../../sections/equipe'
 import Header from '../../sections/header/Index'
+import Videos from '../../sections/videos'
 
 
 function Main() {
@@ -20,6 +21,7 @@ function Main() {
       <Header />
       <Index />
       <Levels />
+      <Videos />
       <Protocols />
       <Equipe />
       <Servicos/>
