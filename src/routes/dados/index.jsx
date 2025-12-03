@@ -11,6 +11,44 @@ const Data = () => {
   const [loading, setLoading] = useState(true);
   const [mostrarCarteirinha, setMostrarCarteirinha] = useState(false);
 
+  // === FUNÇÃO PARA BAIXAR O QR CODE COM TEXTO "meuAPH" ===
+  const baixarQRCodePersonalizado = () => {
+    const canvas = document.getElementById("qr-code-principal");
+    if (!canvas) return;
+
+    const tamanho = 250; // Tamanho da imagem final
+    const margem = 20;
+    const alturaTexto = 40;
+
+    // Cria um canvas temporário para desenhar a imagem final
+    const novoCanvas = document.createElement("canvas");
+    novoCanvas.width = tamanho;
+    novoCanvas.height = tamanho + alturaTexto;
+    const ctx = novoCanvas.getContext("2d");
+
+    // Fundo Branco
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, novoCanvas.width, novoCanvas.height);
+
+    // Texto "meuAPH"
+    ctx.font = "bold 24px Arial";
+    ctx.fillStyle = "#DC2626"; // Vermelho
+    ctx.textAlign = "center";
+    ctx.fillText("MeuAPH", tamanho / 2, 30);
+
+    // Desenha o QR Code original dentro deste canvas
+    ctx.drawImage(canvas, margem, alturaTexto, tamanho - (margem * 2), tamanho - (margem * 2));
+
+    // Baixa a imagem
+    const pngUrl = novoCanvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = pngUrl;
+    link.download = `QR_meuAPH_${paciente.nome}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // === FORMATADORES ===
   const formatarTelefone = (fone) => {
     if (!fone) return "Não informado";
@@ -75,8 +113,6 @@ const Data = () => {
   const ehGestante = paciente.prenhez === "Sim";
   const temDeficiencia = paciente.deficienciaFisica && paciente.deficienciaFisica.trim() !== "";
   const ehImunossuprimido = paciente.imunossuprimido === "Sim";
-  
-  // Verifica se tem contato secundário
   const temContato2 = paciente.contato2Nome && paciente.contato2Telefone;
 
   return (
@@ -84,14 +120,13 @@ const Data = () => {
       
       <style>{`@media print { body * { visibility: hidden; } #carteirinha-modal-content, #carteirinha-modal-content * { visibility: visible; } #carteirinha-modal-content { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background-color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .no-print { display: none !important; } }`}</style>
 
-      {/* Botão Voltar */}
       <div className="max-w-3xl mx-auto mb-4 no-print">
         <button onClick={() => navigate('/')} className="flex items-center text-gray-500 hover:text-blue-600 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg> Voltar</button>
       </div>
 
       <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 no-print">
         
-        {/* ================= CABEÇALHO ================= */}
+        {/* ================= CABEÇALHO (COM FOTO) ================= */}
         <div className="bg-gradient-to-r from-blue-800 to-blue-600 p-8 text-white relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
             <div className="shrink-0 relative">
@@ -108,10 +143,13 @@ const Data = () => {
               <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
                 <span className="bg-blue-900/40 px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-blue-500/30">{calcularIdade(paciente.nascimento)} anos</span>
                 <span className="bg-blue-900/40 px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-blue-500/30">{paciente.genero}</span>
+                {paciente.email && (
+                    <span className="bg-blue-900/40 px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-blue-500/30">{paciente.email}</span>
+                )}
               </div>
-              <div className="flex flex-col md:flex-row gap-3 mt-3 justify-center md:justify-start">
-                 <p className="text-blue-200 text-xs font-mono bg-blue-900/30 px-2 py-1 rounded w-fit">ID: {id}</p>
-                 <p className="text-blue-300 text-[10px] bg-blue-900/20 px-2 py-1 rounded w-fit">Atualizado: {formatarData(paciente.dataCriacao)}</p>
+              <div className="mt-4 text-blue-200 text-xs flex gap-4 justify-center md:justify-start">
+                 <span>ID: {id}</span>
+                 <span>Atualizado: {formatarData(paciente.dataCriacao)}</span>
               </div>
             </div>
           </div>
@@ -129,21 +167,16 @@ const Data = () => {
             </div>
             
             <div className="grid md:grid-cols-3 gap-4">
-                {/* DOADOR */}
                 <div className={`p-3 rounded-xl border flex flex-col justify-center items-center text-center ${ehDoador ? "bg-green-50 border-green-200" : "bg-slate-50 border-slate-100"}`}>
                     <p className="text-xs font-bold uppercase mb-1 text-slate-500">Doador de Órgãos</p>
                     <p className={`font-bold ${ehDoador ? "text-green-600" : "text-slate-400"}`}>{ehDoador ? "SIM" : "Não"}</p>
                 </div>
-                
-                {/* GESTANTE (MOSTRANDO AS SEMANAS AGORA) */}
                 <div className={`p-3 rounded-xl border flex flex-col justify-center items-center text-center ${ehGestante ? "bg-pink-50 border-pink-200" : "bg-slate-50 border-slate-100"}`}>
                     <p className="text-xs font-bold uppercase mb-1 text-slate-500">Gestante (Suspeita)</p>
                     <p className={`font-bold ${ehGestante ? "text-pink-600" : "text-slate-400"}`}>
                         {ehGestante ? `SIM ${paciente.semanasGestacao ? `(${paciente.semanasGestacao} sem)` : ""}` : "Não"}
                     </p>
                 </div>
-                
-                {/* DEFICIÊNCIA */}
                 <div className={`p-3 rounded-xl border flex flex-col justify-center items-center text-center ${temDeficiencia ? "bg-blue-50 border-blue-200" : "bg-slate-50 border-slate-100"}`}>
                     <p className="text-xs font-bold uppercase mb-1 text-slate-500">Deficiência Física</p>
                     <p className={`font-bold text-sm ${temDeficiencia ? "text-blue-700" : "text-slate-400"}`}>{temDeficiencia ? paciente.deficienciaFisica : "Não"}</p>
@@ -155,19 +188,14 @@ const Data = () => {
           <div>
             <h3 className="text-sm font-bold text-slate-400 uppercase mb-3 tracking-wide border-b border-slate-100 pb-1">Histórico Clínico</h3>
             <div className="space-y-4">
-                {/* Alergias */}
                 <div className={`p-4 rounded-xl border-l-4 shadow-sm ${statusBg(temAlergia)}`}>
                     <h4 className={`font-bold mb-1 ${statusColor(temAlergia)}`}>Alergias (Medicamentos/Alimentos)</h4>
                     <p className="text-sm text-slate-700">{temAlergia ? paciente.alergias : "✅ Nenhuma alergia relatada"}</p>
                 </div>
-
-                {/* Medicamentos */}
                 <div className={`p-4 rounded-xl border-l-4 shadow-sm ${statusBg(temMedicamento)}`}>
                     <h4 className={`font-bold mb-1 ${statusColor(temMedicamento)}`}>Medicamentos Contínuos</h4>
                     <p className="text-sm text-slate-700">{temMedicamento ? paciente.medicamentos : "✅ Nenhum uso contínuo"}</p>
                 </div>
-
-                {/* Patologias */}
                 <div className={`p-4 rounded-xl border-l-4 shadow-sm ${statusBg(temCondicao)}`}>
                     <h4 className={`font-bold mb-1 ${statusColor(temCondicao)}`}>Patologias / Cirurgias / Próteses</h4>
                     <p className="text-sm text-slate-700">{temCondicao ? paciente.condicoes : "✅ Sem histórico registrado"}</p>
@@ -207,10 +235,8 @@ const Data = () => {
             )}
           </div>
 
-          {/* ================= 5. CONTATO (AGORA COM O SEGUNDO CONTATO) ================= */}
-          <div className="bg-red-50 border border-red-100 p-6 rounded-2xl">
-            
-            {/* Contato Principal */}
+          {/* ================= 5. CONTATO ================= */}
+          <div className="bg-red-50 border border-red-100 p-6 rounded-2xl space-y-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
               <div>
                 <p className="text-red-500 text-xs font-bold uppercase">Em caso de emergência, ligar para</p>
@@ -222,12 +248,11 @@ const Data = () => {
                 {formatarTelefone(paciente.contatoTelefone)}
               </a>
             </div>
-
-            {/* Contato Secundário (Só aparece se tiver cadastrado) */}
+            {/* Contato Secundário */}
             {temContato2 && (
                 <div className="mt-6 pt-6 border-t border-red-200/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
                     <div>
-                        <p className="text-red-400 text-xs font-bold uppercase">Contato Secundário (Opcional)</p>
+                        <p className="text-red-400 text-xs font-bold uppercase">Contato Secundário</p>
                         <p className="text-red-800 font-bold text-lg mt-1">{paciente.contato2Nome}</p>
                         <p className="text-red-600 font-medium text-sm">({paciente.contato2Relacao})</p>
                     </div>
@@ -236,22 +261,27 @@ const Data = () => {
                     </a>
                 </div>
             )}
-
-            {paciente.email && (
-                <div className="mt-4 pt-2 border-t border-red-200/50 text-center sm:text-left">
-                    <p className="text-xs text-red-400">E-mail do paciente: <span className="text-red-800 font-medium">{paciente.email}</span></p>
-                </div>
-            )}
           </div>
 
           {/* ================= BOTÕES E QR ================= */}
           <div className="flex flex-col items-center gap-4 pt-4">
-            <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm"><QRCodeCanvas value={window.location.href} size={100} level={"H"} /></div>
+            <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                <QRCodeCanvas id="qr-code-principal" value={window.location.href} size={100} level={"H"} />
+            </div>
 
-            <button onClick={() => setMostrarCarteirinha(true)} className="w-full bg-slate-800 text-white px-8 py-4 rounded-xl font-bold shadow-xl hover:bg-black transition flex items-center justify-center gap-3 text-lg">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
-              ABRIR CARTEIRINHA
-            </button>
+            <div className="flex flex-col w-full gap-3">
+                {/* Botão Novo: Baixar QR com Texto */}
+                <button onClick={baixarQRCodePersonalizado} className="w-full bg-white text-blue-600 border-2 border-blue-100 px-8 py-4 rounded-xl font-bold shadow-sm hover:bg-blue-50 transition flex items-center justify-center gap-3 text-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                  BAIXAR IMAGEM DO QR CODE
+                </button>
+
+                <button onClick={() => setMostrarCarteirinha(true)} className="w-full bg-slate-800 text-white px-8 py-4 rounded-xl font-bold shadow-xl hover:bg-black transition flex items-center justify-center gap-3 text-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                  ABRIR CARTEIRINHA
+                </button>
+            </div>
+
           </div>
 
         </div>
@@ -261,11 +291,10 @@ const Data = () => {
       {mostrarCarteirinha && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div id="carteirinha-modal-content" className="bg-white rounded-xl w-full max-w-[500px] overflow-hidden relative shadow-2xl font-sans">
-            
             <button onClick={() => setMostrarCarteirinha(false)} className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 text-white p-1 rounded-full z-10 no-print"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
-
+            {/* ... (Código da carteirinha se mantém igual para economizar espaço aqui, já está correto) ... */}
+            {/* ... Você pode copiar o bloco do modal do código anterior se precisar ... */}
             <div className="bg-white border border-slate-300">
-              {/* Header Carteirinha */}
               <div className="bg-blue-800 p-3 flex gap-3 items-center text-white relative overflow-hidden">
                 <div className="w-14 h-14 bg-white rounded-full border-2 border-white overflow-hidden shrink-0 relative z-10 shadow-md">
                    {paciente.fotoUrl ? <img src={paciente.fotoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400 text-[8px]">FOTO</div>}
@@ -275,77 +304,35 @@ const Data = () => {
                   <p className="text-blue-200 text-[10px] mt-0.5 font-medium">APH - Identificação Positiva</p>
                   <div className="flex gap-1 mt-1 flex-wrap">
                     {ehDoador && <span className="bg-red-600 text-white text-[8px] px-1.5 rounded font-bold border border-white/20">DOADOR ❤️</span>}
-                    {/* Aqui aparece as semanas na carteirinha se tiver */}
                     {ehGestante && <span className="bg-pink-500 text-white text-[8px] px-1.5 rounded font-bold border border-white/20">GESTANTE {paciente.semanasGestacao ? `(${paciente.semanasGestacao}s)` : ""}</span>}
                     {temDeficiencia && <span className="bg-blue-400 text-white text-[8px] px-1.5 rounded font-bold border border-white/20">PCD</span>}
                   </div>
                 </div>
                 <div className="absolute right-[-10px] top-[-10px] text-white/10 rotate-12"><svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="none" stroke="currentColor" strokeWidth="1"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></div>
               </div>
-
               <div className="p-3">
-                 {/* Linha 1: Identificação */}
                  <div className="flex justify-between items-end border-b border-slate-100 pb-2 mb-2">
-                    <div>
-                        <p className="text-[8px] text-slate-400 uppercase font-bold">Nome Completo</p>
-                        <p className="font-bold text-slate-900 text-sm leading-tight">{paciente.nome} {paciente.sobrenome}</p>
-                    </div>
-                    <div className="text-right flex gap-3">
-                        <div><p className="text-[8px] text-slate-400 uppercase font-bold">Idade</p><p className="font-bold text-slate-800 text-sm">{calcularIdade(paciente.nascimento)}</p></div>
-                        <div><p className="text-[8px] text-slate-400 uppercase font-bold">Sangue</p><p className="font-black text-red-600 text-sm bg-red-50 px-1 rounded">{paciente.sangue || "?"}</p></div>
-                    </div>
+                    <div><p className="text-[8px] text-slate-400 uppercase font-bold">Nome Completo</p><p className="font-bold text-slate-900 text-sm leading-tight">{paciente.nome} {paciente.sobrenome}</p></div>
+                    <div className="text-right flex gap-3"><div><p className="text-[8px] text-slate-400 uppercase font-bold">Idade</p><p className="font-bold text-slate-800 text-sm">{calcularIdade(paciente.nascimento)}</p></div><div><p className="text-[8px] text-slate-400 uppercase font-bold">Sangue</p><p className="font-black text-red-600 text-sm bg-red-50 px-1 rounded">{paciente.sangue || "?"}</p></div></div>
                  </div>
-
                  <div className="flex gap-3">
                     <div className="flex-1 space-y-1.5">
-                        <div className={`text-[9px] border-l-2 pl-1.5 ${temAlergia ? 'border-red-500' : 'border-green-500'}`}>
-                            <span className="font-bold text-slate-700 block">ALERGIAS:</span> 
-                            <span className="text-slate-600 leading-tight block">{temAlergia ? paciente.alergias : "Nenhuma"}</span>
-                        </div>
-                        <div className={`text-[9px] border-l-2 pl-1.5 ${temMedicamento ? 'border-blue-500' : 'border-green-500'}`}>
-                            <span className="font-bold text-slate-700 block">MEDICAMENTOS:</span> 
-                            <span className="text-slate-600 leading-tight block">{temMedicamento ? paciente.medicamentos : "Nenhum contínuo"}</span>
-                        </div>
-                        <div className={`text-[9px] border-l-2 pl-1.5 ${temCondicao ? 'border-amber-500' : 'border-green-500'}`}>
-                            <span className="font-bold text-slate-700 block">PATOLOGIAS:</span> 
-                            <span className="text-slate-600 leading-tight block">{temCondicao ? paciente.condicoes : "Nenhuma"}</span>
-                        </div>
-                        {temReligiao && (
-                            <div className="text-[9px] border-l-2 border-purple-500 pl-1.5 bg-purple-50 p-1 rounded-r">
-                                <span className="font-bold text-purple-900 block">RELIGIÃO:</span> 
-                                <span className="text-purple-800 leading-tight block">{paciente.restricaoReligiosa}</span>
-                            </div>
-                        )}
-                        {ehImunossuprimido && (
-                            <div className="text-[9px] border-l-2 border-red-800 pl-1.5 bg-slate-800 p-1 rounded text-white">
-                                ⚠️ PACIENTE IMUNOSSUPRIMIDO
-                            </div>
-                        )}
+                        <div className={`text-[9px] border-l-2 pl-1.5 ${temAlergia ? 'border-red-500' : 'border-green-500'}`}><span className="font-bold text-slate-700 block">ALERGIAS:</span><span className="text-slate-600 leading-tight block">{temAlergia ? paciente.alergias : "Nenhuma"}</span></div>
+                        <div className={`text-[9px] border-l-2 pl-1.5 ${temMedicamento ? 'border-blue-500' : 'border-green-500'}`}><span className="font-bold text-slate-700 block">MEDICAMENTOS:</span><span className="text-slate-600 leading-tight block">{temMedicamento ? paciente.medicamentos : "Nenhum contínuo"}</span></div>
+                        <div className={`text-[9px] border-l-2 pl-1.5 ${temCondicao ? 'border-amber-500' : 'border-green-500'}`}><span className="font-bold text-slate-700 block">PATOLOGIAS:</span><span className="text-slate-600 leading-tight block">{temCondicao ? paciente.condicoes : "Nenhuma"}</span></div>
+                        {temReligiao && <div className="text-[9px] border-l-2 border-purple-500 pl-1.5 bg-purple-50 p-1 rounded-r"><span className="font-bold text-purple-900 block">RELIGIÃO:</span><span className="text-purple-800 leading-tight block">{paciente.restricaoReligiosa}</span></div>}
+                        {ehImunossuprimido && <div className="text-[9px] border-l-2 border-red-800 pl-1.5 bg-slate-800 p-1 rounded text-white">⚠️ PACIENTE IMUNOSSUPRIMIDO</div>}
                     </div>
-
-                    <div className="flex flex-col items-center justify-center w-20 shrink-0">
-                        <QRCodeCanvas value={window.location.href} size={70} />
-                        <p className="text-[7px] text-center text-slate-400 mt-1">Aponte a câmera</p>
-                    </div>
+                    <div className="flex flex-col items-center justify-center w-20 shrink-0"><QRCodeCanvas value={window.location.href} size={70} /><p className="text-[7px] text-center text-slate-400 mt-1">Aponte a câmera</p></div>
                  </div>
               </div>
-              
               <div className="bg-red-600 p-2 text-white flex justify-between items-center">
-                <div>
-                    <p className="text-[8px] font-bold uppercase opacity-80">Em Emergência Ligar:</p>
-                    <p className="text-xs font-bold">{paciente.contatoNome} ({paciente.contatoRelacao})</p>
-                </div>
-                <p className="text-lg font-black bg-white text-red-600 px-2 py-0.5 rounded shadow-sm">
-                    {formatarTelefone(paciente.contatoTelefone)}
-                </p>
+                <div><p className="text-[8px] font-bold uppercase opacity-80">Em Emergência Ligar:</p><p className="text-xs font-bold">{paciente.contatoNome} ({paciente.contatoRelacao})</p></div>
+                <p className="text-lg font-black bg-white text-red-600 px-2 py-0.5 rounded shadow-sm">{formatarTelefone(paciente.contatoTelefone)}</p>
               </div>
             </div>
-
             <div className="p-4 bg-slate-800 flex gap-3 no-print">
-              <button onClick={() => window.print()} className="flex-1 bg-white text-slate-900 py-2 rounded-lg font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
-                Imprimir
-              </button>
+              <button onClick={() => window.print()} className="flex-1 bg-white text-slate-900 py-2 rounded-lg font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2">Imprimir</button>
               <button onClick={() => setMostrarCarteirinha(false)} className="flex-1 border border-slate-600 text-slate-300 py-2 rounded-lg font-bold hover:bg-slate-700 transition">Fechar</button>
             </div>
           </div>
